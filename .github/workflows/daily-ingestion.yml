@@ -20,7 +20,7 @@ name: Daily Data Ingestion
       force_rescrape:
         description: 'Force re-scrape even if data exists'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 concurrency:
