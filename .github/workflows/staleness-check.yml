@@ -1,0 +1,55 @@
+# ==============================================================================
+# Data Staleness Check — GitHub Actions Workflow
+#
+# Monitors the freshness of the vector store data. If the last ingestion
+# was more than 36 hours ago, the workflow fails — triggering GitHub's
+# built-in email notification to repository admins.
+#
+# Schedule: Every 6 hours
+# Manual:   workflow_dispatch from GitHub Actions UI
+# ==============================================================================
+
+name: Data Staleness Check
+
+"on":
+  schedule:
+    # Every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC
+    - cron: '0 */6 * * *'
+
+  workflow_dispatch:
+    inputs:
+      threshold_hours:
+        description: 'Staleness threshold in hours (default: 36)'
+        required: false
+        default: '36'
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  check-staleness:
+    name: Check Data Freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check data staleness
+        env:
+          VECTOR_STORE_PATH: ./vectorstore
+        run: |
+          THRESHOLD="${{ github.event.inputs.threshold_hours || '36' }}"
+          echo "🔍 Checking data staleness (threshold: ${THRESHOLD}h)..."
+          python scripts/check_staleness.py --threshold-hours "$THRESHOLD"

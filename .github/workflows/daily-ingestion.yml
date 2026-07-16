@@ -1,0 +1,85 @@
+# ==============================================================================
+# Daily Data Ingestion — GitHub Actions Workflow
+#
+# Triggers the full ingestion pipeline (scrape → parse → chunk → embed → store)
+# on a daily schedule so the FAQ assistant always has fresh mutual fund data.
+#
+# Schedule: 10:30 AM IST (05:00 UTC) daily
+# Manual:   workflow_dispatch from GitHub Actions UI
+# ==============================================================================
+
+name: Daily Data Ingestion
+
+"on":
+  schedule:
+    # 05:00 UTC = 10:30 AM IST daily
+    - cron: '0 5 * * *'
+
+  workflow_dispatch:
+    inputs:
+      force_rescrape:
+        description: 'Force re-scrape even if data exists'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: ingestion-pipeline
+  cancel-in-progress: false  # Queue, don't cancel — ingestion must complete
+
+permissions:
+  contents: write  # Needed to push updated vectorstore
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  ingest:
+    name: Run Full Ingestion Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ----- Setup -----
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ----- Ingestion -----
+      - name: Run full ingestion pipeline
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+          VECTOR_STORE_PATH: ./vectorstore
+        run: |
+          echo "🚀 Starting full ingestion pipeline..."
+          echo "⏰ Triggered at: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          python scripts/ingest.py --full
+
+      # ----- Validation -----
+      - name: Validate ingestion results
+        run: |
+          echo "🔍 Validating ingestion results..."
+          python scripts/validate_ingestion.py
+
+      # ----- Commit & Push -----
+      - name: Commit updated vectorstore
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vectorstore/ data/
+          if git diff --cached --quiet; then
+            echo "ℹ️  No changes to commit — vectorstore is already up-to-date."
+          else
+            git commit -m "chore: daily data re-ingestion $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+            echo "✅ Updated vectorstore committed and pushed."
+          fi
