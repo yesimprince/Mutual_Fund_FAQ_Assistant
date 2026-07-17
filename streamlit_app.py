@@ -849,5 +849,3 @@ if prompt:
             "query_type": result.get("query_type", "factual"),
         })
 
-    # Force rerun to update sidebar rate limits
-    st.rerun()
