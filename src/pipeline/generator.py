@@ -81,11 +81,12 @@ def _get_groq_client():
     global _groq_client
     if _groq_client is None:
         from groq import Groq
-        if not GROQ_API_KEY:
+        api_key = os.getenv("GROQ_API_KEY") or GROQ_API_KEY
+        if not api_key:
             raise ValueError(
-                "GROQ_API_KEY not set. Please set it in .env or environment variables."
+                "GROQ_API_KEY not set. Please set it in .env or Streamlit secrets."
             )
-        _groq_client = Groq(api_key=GROQ_API_KEY)
+        _groq_client = Groq(api_key=api_key)
         logger.info("Groq client initialized with model: %s", GROQ_MODEL)
     return _groq_client
 
@@ -233,10 +234,12 @@ def generate_response(query: str, context_chunks: list[dict]) -> dict:
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error("Groq API call failed: %s", e)
         return {
             "status": "error",
-            "answer": "I'm having trouble generating a response right now. Please try again later.",
+            "answer": f"I'm having trouble generating a response right now. Error: {str(e)}",
             "source": None,
             "last_updated": None,
             "query_type": "factual",
