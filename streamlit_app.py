@@ -627,10 +627,12 @@ def process_query(query: str) -> dict:
 
             return generate_response(sanitized_query, chunks)
 
-        except Exception:
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
             return {
                 "status": "error",
-                "answer": "I'm having trouble processing your request right now. Please try again later.",
+                "answer": f"I'm having trouble processing your request right now. Error: {str(e)}",
                 "source": None,
                 "last_updated": None,
                 "query_type": "factual",
