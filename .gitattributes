@@ -1,0 +1,2 @@
+# Ignore raw data files for GitHub language statistics
+data/raw/* linguist-generated=true
