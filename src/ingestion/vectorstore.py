@@ -79,6 +79,7 @@ def store_chunks(chunks_with_embeddings: list[dict]) -> None:
             "scheme_name": chunk.get("scheme_name", ""),
             "category": chunk.get("category", ""),
             "chunk_type": chunk.get("chunk_type", ""),
+            "last_scraped_date": chunk.get("last_scraped_date", ""),
         }
         
         if "section_heading" in chunk and chunk["section_heading"] is not None:
